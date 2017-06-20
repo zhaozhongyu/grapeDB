@@ -207,7 +207,11 @@ public class Table
         });
         return true;
     }
-
+    public void delete(Value value, String columnName){
+        index currentIndex = indexMap.get(columnName);
+        currentIndex.getIndexTree().delete(value);
+        return;
+    }
 
     public Row search(Value value, String ColumnName){
         index currentIndex = indexMap.get(ColumnName);
