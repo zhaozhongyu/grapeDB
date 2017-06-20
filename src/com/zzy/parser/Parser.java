@@ -57,7 +57,7 @@ public class Parser
             list.add(currentToken);
         }
         String tableName = next();
-        Table table = schema.getTableOrView(tableName); 
+        Table table = schema.getTableOrView(tableName);
         if(checkNext("WHERE")){ //where子句只处理主键查找
             String columnName = next();
             String symbol = next();
@@ -66,9 +66,9 @@ public class Parser
             Row row = table.search(value, columnName);
             System.out.println(row);
         } else {
-            
+
         }
-            
+
     }
 
     public void parseCreate(){
@@ -262,7 +262,8 @@ public class Parser
 
     //判断list中下一个字符串是否与输入的一致
     public boolean checkNext(String str){
-        return checkEqual(next());
+        next();
+        return checkEqual(str);
     }
 
     public boolean checkEqual(String str) {
