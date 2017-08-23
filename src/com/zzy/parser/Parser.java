@@ -1,40 +1,69 @@
 package com.zzy.parser;
 
+import com.zzy.Expression.*;
 import com.zzy.Schema.Schema;
 import com.zzy.Table.Column;
 import com.zzy.Table.ColumnType;
-import com.zzy.Table.Row;
 import com.zzy.Table.Table;
+import com.zzy.Table.TableFilter;
 import com.zzy.Value.Value;
 import com.zzy.Value.ValueInt;
 import com.zzy.Value.ValueString;
+import com.zzy.engine.SQLConnection;
 import com.zzy.parser.ddl.CreateTable;
+import com.zzy.parser.dml.Insert;
+import com.zzy.parser.dml.Query;
+import com.zzy.parser.dml.Select;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Stack;
 
 public class Parser
 {
     public String currentToken = "";
-    public int currentTokenType;
     public LinkedList<String> tokens;
-    public Schema schema = new Schema(false, "data");
+    public Schema schema;
+
+    private int[] characterTypes;
+    private String originalSQL;
+    private String sqlCommand;
+    private char[] sqlCommandChars;
+
+    private int parseIndex;
+    private int lastParseIndex;
+
+    Select currentSelect = null;
+    Prepared currentPrepared = null;
+
+    private String schemaName;
+
+    private final boolean identifiersToUpper = true;
+
+    private SQLConnection connection;
+
+    public Parser(SQLConnection connection, Schema schema) {
+        this.connection = connection;
+        this.schema = schema;
+    }
 
     /**
-     * 不处理join
+     *
      *
      */
-    public void parse(){
+    public Prepared parse(String sql){
+        tokens = Tokenizer.Tokenizer(sql);
         next();
         if(checkEqual("SELECT")){
-            parseSelect();
+            return parseSelect();
         }
         else if(checkEqual("CREATE")){
-            parseCreate();
+            return parseCreate();
         }
         else if(checkEqual("INSERT")){
-            parseInsert();
+            return parseInsert();
         }
         else if(checkEqual("DELETE")){
             parseDelete();
@@ -44,51 +73,189 @@ public class Parser
         } else {
             throw new RuntimeException("Syntax error.");
         }
-
+        return null;
     }
 
     /**
      * select * from table where name = 'peter';
      */
-    public void parseSelect(){
-
-        ArrayList<String> list = new ArrayList<>();
-        while (! checkNext("FROM")){ //把from之前的所有String加入list中
-            list.add(currentToken);
+    public Prepared parseSelect(){
+        currentSelect = new Select(connection);
+        ArrayList<Expression> list = new ArrayList<>();
+        while (! checkNext("FROM")){ //把from之前的所有string解析成ExpressionColumn加入list中
+            list.add(new ExpressionColumn(currentToken));
         }
-        String tableName = next();
-        Table table = schema.getTableOrView(tableName);
-        if(checkNext("WHERE")){ //where子句只处理主键查找
-            String columnName = next();
-            String symbol = next();
-            next();
-            Value value = parseValue();
-            Row row = table.search(value, columnName);
-            System.out.println(row);
+        currentSelect.setSelect(list);
+        while(!checkEqual("WHERE")){
+            String tableName = next();
+            Table table = schema.getTableOrView(tableName);
+            String alias = tableName;
+            if (checkNext("AS")){
+                alias = next();
+                TableFilter tableFilter = new TableFilter(connection, table, alias, currentSelect);
+                currentSelect.addTableFilter(tableFilter);
+                next(); //将current走到逗号处或者走到where处 todo 此处未检查合法性
+            } else if (checkEqual(",")){ //没有alias
+                TableFilter tableFilter = new TableFilter(connection, table, alias, currentSelect);
+                currentSelect.addTableFilter(tableFilter);
+            } else { //tablename后面要么是as, 要么是逗号, 两个都不是的话说明已结束tablename
+                TableFilter tableFilter = new TableFilter(connection, table, alias, currentSelect);
+                currentSelect.addTableFilter(tableFilter);
+                break;
+            }
+
+        }
+
+        if(checkEqual("WHERE")){
+            currentSelect.setWhere(parseWhere());
         } else {
 
         }
-
+        return currentSelect;
     }
 
-    public void parseCreate(){
+    /**
+     * 解析where子句, 暂时不实现join多表查询, 还有select子查询
+     * 每一个条件式, = 表达式由3个字符串组成, LIKE表达式由3或4个字符串组成, IS表达式由3到4个字符串组成, Between表达式由5个字符串组成, In表达式由不限量个字符串组成
+     */
+    public Expression parseWhere(){
+        Expression expression = parseAnd();
+        while (checkEqual("OR")){
+            expression = new ConditionAndOr(ConditionAndOr.OR, expression, parseAnd());
+        }
+        return expression;
+    }
+
+    // 循环解析And表达式
+    private Expression parseAnd(){
+        Expression expression = parseCondition();
+        while(checkNext("AND")){
+            expression = new ConditionAndOr(ConditionAndOr.AND, expression, parseCondition());
+        }
+        return expression;
+    }
+
+    // 解析单条条件式, 比如 id = 1, 当进入该方法时, currentToken应该就为id
+    public Expression parseCondition() {
+        ExpressionColumn left = new ExpressionColumn(next());
+        String symbol;
+        Expression value;
+        boolean Not = false;
+        String columnName;
+        while (true){
+            switch (next()) {
+                case "=":
+                case ">=":
+                case "<=":
+                case "<":
+                case ">":
+                case "!=":
+                    symbol = currentToken;
+                    if(next().startsWith("'") && currentToken.endsWith("'")){
+                        value = new ValueExpression(parseValue(currentToken));
+                    } else {
+                        value = new ExpressionColumn(currentToken);
+                    }
+
+                    ConditionArithmetic arithmetic = new ConditionArithmetic(left, symbol, value);
+                    //if(left.isIndex()){
+                    //    currentSelect.setLimit(arithmetic);
+                    //}
+                    return arithmetic;// 这里不可能有not
+
+                case "IN": // id in ( 1, 2, 3, 4, 5) 或者 id in ( select id from persons )
+                    if (!checkNext("(")){
+                        try{
+                            throw new SQLException("Syntax error");
+                        }  catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    if(checkNext("SELECT")){ // select 子查询
+                        throw new RuntimeException("Not Support SubQuery yet.");
+                    }
+                    List<Expression> list = new ArrayList<>();
+                    while(! checkEqual(")")){
+                        Expression e = new ValueExpression(parseValue(currentToken));
+                        list.add(e);
+                        if(checkNext(",")){
+                            next();
+                        } else if(checkEqual(")")){
+
+                        } else {
+                            throw new RuntimeException("Syntax error.");
+                        }
+                    }
+                    ConditionIn conditionIn = new ConditionIn(left, list, Not);
+                    if(left.isIndex()){
+                        currentSelect.setLimit(conditionIn);
+                    }
+                    return conditionIn;
+
+                case "BETWEEN": // name between 'aaa' and 'bbb'
+                    value = new ValueExpression(parseValue(next()));
+                    if(! checkNext("AND")){
+                        try{
+                            throw new SQLException("Syntax error");
+                        }  catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    //                           column, leftValue, rightValue, Not
+                    ConditionBetween conditionBetween = new ConditionBetween(left, value, new ValueExpression(parseValue(next())), Not);
+                    if(left.isIndex()){
+                        currentSelect.setLimit(conditionBetween);
+                    }
+                    return conditionBetween;
+
+                case "IS":// IS NULL 或者 IS NOT NULL
+                    if (checkNext("NULL")){
+                        return new ConditionIs(left, false);
+                    } else if(checkEqual("NOT") & checkNext("NULL")) {
+                        return new ConditionIs(left,true);
+                    } else { //is 后面既不是NOT NULL也不是NULL
+                        try{
+                            throw new SQLException("Syntax error");
+                        }  catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    break;
+                case "NOT": // NOT IN 或者 NOT LIKE 或 NOT BETWEEN
+                    Not = true;
+                    continue ;
+                case "LIKE": // name like 'peter%'
+                    return new ConditionLike(left, new ValueExpression(parseValue(next())), Not);
+
+                default:
+                    try {
+                        throw new SQLException("Syntax error.");
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+            }
+        }
+    }
+
+
+
+    public Prepared parseCreate(){
         next();
         if(checkEqual("TABLE")){
-            parseCreateTable();
-            return;
+            return parseCreateTable();
         }
         else if(checkEqual("INDEX")){
-            parseCreateIndex();
-            return;
+            return parseCreateIndex();
         }
-        throw new RuntimeException("Syntax error,table or index must be after create"); //暂时只支持创建Table, Index
+        throw new RuntimeException("Syntax error,table or Index must be after create"); //暂时只支持创建Table, Index
     }
 
     /**
      * INSERT INTO Persons VALUES (001, 'Gates', 'Bill', 'Xuanwumen 10', 'Beijing')
      * INSERT INTO Persons (ID, LastName, Address) VALUES (001, 'Wilson', 'Champs-Elysees')
      */
-    public void parseInsert(){
+    public Query parseInsert(){
+        Insert insert = new Insert(connection);
         if(!checkNext("INTO")){
             throw new RuntimeException("Syntax error, Into must be after insert.");
         }
@@ -97,18 +264,21 @@ public class Parser
         if (table == null){ //map在获取不到指定key时返回null, 所以要判断table是否为null
             throw new RuntimeException("Not such Table.");
         }
+        insert.setTable(table);
         if(checkNext("VALUES")){  //全量插入
+            insert.setNoColumns(true);
             Value[] values = parseValues();
-            table.insert(values);
+            insert.setValues(values);
         } else { //指定插入
             Column[] columns = parserColumns(table);
+            insert.setColumns(columns);
             if(! checkNext("VALUES")){
                 throw new RuntimeException("Syntax error, Values must be after column.");
             }
             Value[] values = parseValues();
-            table.insert(values, columns);
+            insert.setValues(values);
         }
-
+        return insert;
     }
 
     /**
@@ -126,8 +296,8 @@ public class Parser
         }
         String columnName = next();
         String symbol = next();
-        next();
-        Value value = parseValue();
+
+        Value value = parseValue(next());
         table.delete(value, columnName);
     }
 
@@ -142,9 +312,9 @@ public class Parser
      * 1.不处理if not exist
      *
      */
-    public void parseCreateTable(){
+    public Prepared parseCreateTable(){
 
-        CreateTable createTable = new CreateTable(schema); //通过这个类来创建table
+        CreateTable createTable = new CreateTable(connection, schema); //通过这个类来创建table
         Stack<String> stack = new Stack<>();
         String tableName = next(); //table 后的第一个字段就是tablename, 此处不做异常处理
         createTable.setTableName(tableName);
@@ -199,14 +369,15 @@ public class Parser
             // next(); //取下一个token
         } while (!stack.isEmpty()); //当遇到(时, 往stack中push, 遇到)时, 从stack中pop
         //结束while说明create table的数据都读取完了
-        createTable.create();
+        //createTable.create();
+        return createTable;
     }
 
     /**
      *
      */
-    public void parseCreateIndex(){
-
+    public Prepared parseCreateIndex(){
+        return null;
     }
 
     public Column[] parserColumns(Table table ) {
@@ -238,8 +409,8 @@ public class Parser
         }
 
         while(! ")".equals(currentToken)){ //遇到)时终止循环
-            next(); //将currentToken移动到第一个参数上
-            list.add(parseValue());
+            //将currentToken移动到第一个参数上
+            list.add(parseValue( next()));
             if(! ",".equals(next()) && ! ")".equals(currentToken)){ //每个value值后只能是, 最后一个value值是), 简单校验语法
                 throw new RuntimeException("Syntax error, ',' must be after value.");
             }
@@ -253,7 +424,7 @@ public class Parser
      * 判断当前value的类型, 返回相应的value实例, 后续直接扩充此方法
      * @return
      */
-    public Value parseValue(){
+    public Value parseValue(String currentToken){
         if(currentToken.charAt(0) == '\'' && currentToken.charAt(currentToken.length() - 1) == '\''){
             return new ValueString(currentToken.substring(1, currentToken.length() - 1));
         }
@@ -280,121 +451,6 @@ public class Parser
         }
         return null;
     }
-    /**
-     *CREATE TABLE Persons (Id_P int not null primary key, LastName varchar(255) NOT NULL, FirstName varchar(255), Address varchar(255), City varchar(255) );
-     * @param sql
-     * 暂不处理*
-     */
-    public LinkedList<String> Tokenizer(String sql ){
-        LinkedList<String> list = new LinkedList<>();
-        int current = 0;
-        char c;
-        StringBuilder sb;
-        while(current < sql.length()){
 
-            c = sql.charAt(current); //先取值
-            //检查是否字符
-            if(Character.isLetter(c)){
-                sb = new StringBuilder();
-                while (Character.isLetterOrDigit(c)){ //只要以字母开头, 则获取到后面的所有字母或数字, 暂时不管模糊查询
-                    sb.append(c);
-                    c = sql.charAt(++ current);
-                }
-                list.add(sb.toString().toUpperCase()); //全部转为大写字母
-                continue;
-            }
 
-            //检查是否是数字
-            if(Character.isDigit(c)) {
-                sb = new StringBuilder();
-                while(Character.isDigit(c)){
-                    sb.append(c);
-                    c = sql.charAt(++ current);
-                }
-                list.add(sb.toString());
-                continue;
-            }
-
-            if(Character.isSpaceChar(c) ){ //遇到空格或者,则继续下一步
-                current ++;
-                continue;
-            }
-
-           /* if(c == ')' || c == '(' || c == '[' || c == ']' || c == '-' || c == '!'|| c == ','){  //如果是括号, 则加入token中, []-是正则的作用
-                current++;
-                list.add(String.valueOf(c));
-
-                continue;
-            }*/
-            switch (c){
-                case '(':
-                case '[':
-                    list.add(String.valueOf(c));
-                    current++;
-                    break;
-                case ')':
-                case ']':
-                    list.add(String.valueOf(c));
-                    current++;
-                    break;
-                case '\'': //如果遇到' 说明是insert或update或select中的表示varchar的值, 此时继续往下读, 一直读取到下一个'出现
-                    sb = new StringBuilder("'");
-                    char lastc = c; //设置last以判断是否是转义的'
-                    while(true){
-                        c = sql.charAt(++current);
-                        if(c == '\'' && lastc != '\\'){
-                            sb.append(c);
-                            list.add(sb.toString()); //varchar 不转大写
-                            break;
-                        }
-                        sb.append(c);
-                        lastc = c;
-                    }
-                    current++;
-                    break;
-                case '=':
-                    list.add(String.valueOf(c));
-                    current++;
-                    break;
-                case '>':
-                    if(sql.charAt(current + 1) == '='){
-                        list.add(">=");
-                        current += 2;
-                    } else {
-                        list.add(">");
-                        current ++;
-                    }
-                    break;
-                case '<':
-                    if(sql.charAt(current + 1) == '='){
-                        list.add("<=");
-                        current += 2;
-                    } else {
-                        list.add("<");
-                        current ++;
-                    }
-                    break;
-                case '!':
-                    if(sql.charAt(current+1) != '='){
-                        throw new  RuntimeException("Syntax error, '!' must be before '='.");
-                    }
-                    list.add("!=");
-                    current += 2;
-                    break;
-
-                case ',':
-                    list.add(String.valueOf(c));
-                    current++;
-                    break;
-
-            }
-
-            if(c == ';'){ //遇到;则表示这段sql已结束
-                break;
-            }
-
-        }
-        tokens = list;
-        return list;
-    }
 }
