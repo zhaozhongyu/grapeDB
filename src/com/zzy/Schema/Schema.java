@@ -1,6 +1,7 @@
 package com.zzy.Schema;
 
 import com.zzy.Table.Table;
+import com.zzy.engine.Database;
 
 import java.util.HashMap;
 
@@ -9,6 +10,7 @@ public class Schema
     private String name;
     private boolean system; //标识是否系统自动创建的, 用户创建的设为false
     private final HashMap<String, Table> tablesAndViews;  //存放该Schema下的所有table和view, table或view不可重名
+
 
     public Schema(boolean system, String name) {
         this.system = system;
@@ -36,6 +38,10 @@ public class Schema
             }
             tablesAndViews.remove(tableName);
         }
+    }
+
+    public String getName(){
+        return name;
     }
 
 }
