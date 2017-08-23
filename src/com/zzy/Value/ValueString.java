@@ -27,7 +27,10 @@ public class ValueString extends Value
         return this.getValue();
     }
 
+    @Override
     public boolean equals(Object vs){
         return this.getValue().equals(((ValueString)vs).getValue());
     }
+
+    @Override public int hashCode() { return this.getValue().hashCode(); }
 }
