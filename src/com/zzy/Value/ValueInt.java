@@ -40,4 +40,11 @@ public class ValueInt extends Value
     public boolean equals(Object vs){
         return this.getValue().equals(((ValueInt)vs).getValue());
     }
+
+    @Override
+    public String toString() {
+        return this.getValue().toString();
+    }
+
+    @Override public int hashCode() { return this.getValue().hashCode(); }
 }
