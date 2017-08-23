@@ -7,7 +7,6 @@ import com.zzy.Index.Index;
 import com.zzy.Index.IndexCursor;
 import com.zzy.Value.Value;
 import com.zzy.engine.SQLConnection;
-import com.zzy.engine.Session;
 import com.zzy.parser.dml.Select;
 
 import java.util.ArrayList;
