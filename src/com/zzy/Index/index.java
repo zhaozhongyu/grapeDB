@@ -4,13 +4,16 @@ import com.zzy.Table.Column;
 import com.zzy.Table.Row;
 import com.zzy.Value.Value;
 
-public class index
+/**
+ * 包装B+树, 提供访问接口
+ * */
+public class Index
 {
     protected Column column; //记录唯一列的名字, 唯一列在row中的存放位置i
 
     protected TreeGen indexTree; //建立b+树
 
-    public index(Column column){
+    public Index(Column column){
         this.column = column;
         this.indexTree = new TreeGen(4); //随便取了个4阶作为默认使用
     }
@@ -20,7 +23,7 @@ public class index
      * @param column
      * @param leaf
      */
-    public index(Column column, TreeLeaf leaf ){
+    public Index(Column column, TreeLeaf leaf ){
         this.column = column;
         this.indexTree = new TreeGen(4);
         int i = column.getColumnid(); //当前column字段在row中数组Value[]的存放位置
@@ -57,6 +60,19 @@ public class index
                     return (Row)leaf.values.get(i);
                 }
             }
+        }
+        return null;
+    }
+
+
+
+    public TreeLeaf searchLeaf(Value value){
+        return (TreeLeaf)indexTree.search(value);
+    }
+
+    public TreeLeaf getFirstLeaf() {
+        if(indexTree != null){
+            return indexTree.getFirstLeaf();
         }
         return null;
     }
