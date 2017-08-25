@@ -5,6 +5,8 @@ public class Column {
     private ColumnType type; //标识类型
     private int length; //对于varchar等类型, 标识最大长度, 对于int等基础类型, 不生效
     private boolean isNullable = true; //是否可空, 默认为true
+
+
     private boolean primaryKey; //是否主键  update: 是否主键对column 无影响, 对table才有影响, 用于创建index
     private boolean isUnique; //是否唯一
     private int columnid; //标识在column list 中的位置, 用以在新增数据/查询数据等操作时快速获取, 在创建table的时候设置
@@ -150,5 +152,9 @@ public class Column {
             isNullable = false; //唯一列不允许为空
         }
         isUnique = unique;
+    }
+
+    public boolean isPrimaryKey() {
+        return primaryKey;
     }
 }
