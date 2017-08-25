@@ -1,10 +1,11 @@
 package com.zzy.Table;
 
+import com.zzy.Index.Index;
 import com.zzy.Index.TreeLeaf;
-import com.zzy.Index.index;
 import com.zzy.Schema.Schema;
 import com.zzy.Value.Value;
 import com.zzy.Value.ValueInt;
+import com.zzy.engine.SQLConnection;
 
 import java.util.HashMap;
 
@@ -15,8 +16,8 @@ public class Table
     protected HashMap<String, Column> columnHashMap ; //存放column, 用于在非全量插入时使用和修改column时快速使用
     protected Schema schema;   //标识schema, 主要是权限管理用途, 关系链 user - rule - schema - table
     protected int uniqueColumns; //记录唯一列的数量, 用于在插入数据时校验是否已经输入所有唯一列
-    protected HashMap<String, index> indexMap; //存放当前已建立的index, key为index标示的唯一列名字, 只允许唯一列创建index, 并且此列必须为可compare的字段
-    protected index defaultIndex; //默认index, 当新增index时, 遍历defaultIndex以插入index
+    protected HashMap<String, Index> indexMap; //存放当前已建立的index, key为index标示的唯一列名字, 只允许唯一列创建index, 并且此列必须为可compare的字段
+    protected Index defaultIndex; //默认index, 当新增node时, 遍历defaultIndex以插入index
     private int id; //隐式primarykey的主键值
 
     /**
@@ -39,7 +40,7 @@ public class Table
             if(column.isUnique())
                 this.uniqueColumns++;
         }
-        this.indexMap = new HashMap<String, index>();
+        this.indexMap = new HashMap<String, Index>();
         this.id = 0;
 
         CreateIndex(primarykey);
@@ -68,7 +69,7 @@ public class Table
                         this.uniqueColumns++;
                 }
 
-                this.indexMap = new HashMap<String, index>();
+                this.indexMap = new HashMap<String, Index>();
                 this.id = 0;
                 CreateIndex(column);
                 break;
@@ -87,16 +88,16 @@ public class Table
      */
     public void CreateIndex(Column column){
         if(!column.isUnique()){
-            throw new RuntimeException("Can't create index with not unique column."); //必须要唯一列才能创建index
+            throw new RuntimeException("Can't create Index with not unique column."); //必须要唯一列才能创建index
         }
         if(this.defaultIndex == null){ //倘若没有defaultIndex则说明表里面没有数据
-            this.defaultIndex = new index(column);
+            this.defaultIndex = new Index(column);
             indexMap.put(column.getName(), this.defaultIndex);
             return;
         }
         //已存在defaultIndex, 则获取到defaultIndex的最左边叶子节点, 进行初始化index
         TreeLeaf leaf = this.defaultIndex.getIndexTree().getFirstLeaf();
-        index newIndex = new index(column, leaf);
+        Index newIndex = new Index(column, leaf);
         indexMap.put(column.getName(), newIndex);
         return;
     }
@@ -207,22 +208,46 @@ public class Table
         });
         return true;
     }
+
     public void delete(Value value, String columnName){
-        index currentIndex = indexMap.get(columnName);
+        Index currentIndex = indexMap.get(columnName);
         currentIndex.getIndexTree().delete(value);
         return;
     }
 
+    public void delete(Row row){
+        for(Column column : columns){
+            if(indexMap.containsKey(column.getName())){
+                indexMap.get(column.getName())
+                        .getIndexTree().delete(row.getValue(column.getColumnid()));
+            }
+        }
+    }
+
     public Row search(Value value, String ColumnName){
-        index currentIndex = indexMap.get(ColumnName);
+        Index currentIndex = indexMap.get(ColumnName);
         return currentIndex.search(value);
+    }
+
+    //row 表示原来的row, nrow表示新的row
+    public void update(Row row, Row nrow){
+        for(Index index : indexMap.values()){
+            index.update(row, nrow);
+        }
     }
 
     public Column getColumn(String columnName){
         return this.columnHashMap.get(columnName);
     }
 
+    public Column[] getColumns(){ return this.columns; }
+
     public String getName(){
         return name;
+    }
+
+
+    public Schema getSchema() {
+        return schema;
     }
 }
