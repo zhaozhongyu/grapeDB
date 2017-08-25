@@ -6,7 +6,6 @@ import com.zzy.engine.SQLConnection;
 import com.zzy.engine.SQLResultSet;
 import com.zzy.engine.SQLStatement;
 import com.zzy.parser.Prepared;
-import com.zzy.result.LocalResult;
 
 import java.util.ArrayList;
 
@@ -27,7 +26,6 @@ public abstract class Query extends Prepared
     // for limit
     protected Expression limitExpr;
 
-    private LocalResult lastResult;
 
     protected Query(SQLConnection connection) {
         super(connection);
