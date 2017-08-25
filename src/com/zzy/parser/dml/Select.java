@@ -105,7 +105,7 @@ public class Select extends Query
         resultSetMetaData.setColumns(columns);
         resultSet.setMetaData(resultSetMetaData);
         List<Row> results = new ArrayList<>();
-        HashSet<Row> resultsSet = new HashSet<>();
+        HashSet<Row> resultsSet = new HashSet<>(); //此变量用于对结果进行去重
 
         Value[] values ;
         int size = select.size();
@@ -203,6 +203,9 @@ public class Select extends Query
         } else  { // 没有where子句时, 直接遍历所有节点
             //当前的表到达终点时, 重置当前表, 执行下一个表的next操作, 如果已经没有下一个表, 则退出
             int k = 0;
+            for(TableFilter tableFilter : from){
+                tableFilter.next(); //将所有tableFilter都执行一遍next(), 以将指针指向有效值
+            }
             while(k < from.size()) {
                 //此时, 从select列表中的表达式分别getValue, 并写入到resultSet中
                 values = new Value[size];
@@ -242,7 +245,6 @@ public class Select extends Query
 
     public void addTableFilter(TableFilter filter) {
         from.add(filter); //每个table会生成一个TableFilter, 每个TableFilter持有一个或零个index条件式
-
     }
 
     //todo 设置limit条件
