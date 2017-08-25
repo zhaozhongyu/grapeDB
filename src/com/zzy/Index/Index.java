@@ -90,6 +90,12 @@ public class Index
         indexTree.insert(value, row);
     }
 
+    public void update(Row row, Row nrow){
+        Value value = row.getValue(column.getColumnid()); //从旧的row中获取到原来的index column的值, 然后更新成新的row
+        indexTree.delete(value);
+        indexTree.insert(nrow.getValue(column.getColumnid()), nrow);
+    }
+
     /**
      * 获取columnName
      * @return
