@@ -8,5 +8,6 @@ public class TreeLeaf extends INode {
     public TreeLeaf rightBrother = null;
 
     public TreeLeaf() {
+        this.isLeaf = true;
     }
 }
