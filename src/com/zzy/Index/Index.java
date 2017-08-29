@@ -87,13 +87,18 @@ public class Index
         if(exist == null){
             throw new RuntimeException("Not exist key.");
         }
-        indexTree.insert(value, row);
+        indexTree.update(value, row);
     }
 
     public void update(Row row, Row nrow){
-        Value value = row.getValue(column.getColumnid()); //从旧的row中获取到原来的index column的值, 然后更新成新的row
-        indexTree.delete(value);
-        indexTree.insert(nrow.getValue(column.getColumnid()), nrow);
+        Value value = row.getValue(column.getColumnid()); //从旧的row中获取到原来的index column的值
+        if(value.equals(nrow.getValue(column.getColumnid()))) {
+            update(value, nrow); //如果index column的值是一致的, 则直接使用update, 此时不会引发树的重新排列
+        }
+        else { //如果index列已经被改变了, 则先删除, 再插入. 此时会引发树的重新排列
+            indexTree.delete(value);
+            indexTree.insert(nrow.getValue(column.getColumnid()), nrow);
+        }
     }
 
     /**
