@@ -17,18 +17,24 @@ public class Main {
         execute(statement, "INSERT INTO Persons VALUES ('Gates peter',  'Xuanwumen 10', 'Beijing');");
         execute(statement, "INSERT INTO Persons VALUES ('William',  'Xuanwumen 10', 'Beijing');");
         execute(statement, "INSERT INTO Persons VALUES ('Gates Bill',  'Xuanwumen 10', 'Beijing');");
-        execute(statement, "select * from Persons where City = 'Beijing'");
-        execute(statement, "select * from Persons where City = 'Beijing' and name = 'William'");
-        execute(statement, "select * from Persons where  name = 'Gates Bill'or City = 'Beijing' ;");
+        //execute(statement, "select * from Persons where City = 'Beijing'");
+        //execute(statement, "select * from Persons where City = 'Beijing' and name = 'William'");
+       // execute(statement, "select * from Persons where  name = 'Gates Bill'or City = 'Beijing' ;");
 
-        execute(statement, "INSERT INTO humans VALUES ('Gates peter',  'Changanjie', 'Beijing');");
-        execute(statement, "INSERT INTO humans VALUES ('William',  'Changanjie', 'Beijing');");
-        execute(statement, "INSERT INTO humans VALUES ('Gates Bill',  'Changanjie', 'Beijing');");
+      //  execute(statement, "INSERT INTO humans VALUES ('Gates peter',  'Changanjie', 'Beijing');");
+      //  execute(statement, "INSERT INTO humans VALUES ('William',  'Changanjie', 'Beijing');");
+      //  execute(statement, "INSERT INTO humans VALUES ('Gates Bill',  'Changanjie', 'Beijing');");
 
-        execute(statement, "select p.* from Persons as p where  p.name = 'Gates Bill'or p.City = 'Beijing' ;");
-        execute(statement, "select h.* from Persons as p, humans as h where  p.name = 'Gates Bill' and p.name = h.name;");
-        execute(statement, "select h.* from Persons as p, humans as h where  p.name = 'Gates Bill' and p.name = h.name or h.name = 'William';");
+        //execute(statement, "select p.* from Persons as p where  p.name = 'Gates Bill'or p.City = 'Beijing' ;");
+        //execute(statement, "select h.* from Persons as p, humans as h where  p.name = 'Gates Bill' and p.name = h.name;");
+        //execute(statement, "select h.* from Persons as p, humans as h where  p.name = 'Gates Bill' and p.name = h.name or h.name = 'William';");
 
+        execute(statement, "update Persons set address = 'Fumin Lu' where name = 'William';");
+        execute(statement, "select * from Persons where City = 'Beijing';");
+        execute(statement, "select * from Persons where address like 'Fumin%';");
+
+        execute(statement, "delete from Persons where address = 'Fumin Lu';");
+        execute(statement, "select * from Persons where address like 'Fumin%';");
 
     }
 
@@ -46,13 +52,13 @@ public class Main {
         int count = md.getColumnCount();
         for (int i = 0; i < count; i++) {
             System.out.print(md.getColumnLabel(i));
-            System.out.print('\t');
+            System.out.print("\t|");
         }
         System.out.println();
         while (rs.next()) {
             for (int i = 0; i < count; i++) {
                 System.out.print(rs.getObject(i));
-                System.out.print('\t');
+                System.out.print("\t|");
             }
             System.out.println();
         }
