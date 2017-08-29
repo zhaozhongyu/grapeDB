@@ -11,15 +11,10 @@ import com.zzy.Value.ValueInt;
 import com.zzy.Value.ValueString;
 import com.zzy.engine.SQLConnection;
 import com.zzy.parser.ddl.CreateTable;
-import com.zzy.parser.dml.Insert;
-import com.zzy.parser.dml.Query;
-import com.zzy.parser.dml.Select;
+import com.zzy.parser.dml.*;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 public class Parser
 {
@@ -66,14 +61,13 @@ public class Parser
             return parseInsert();
         }
         else if(checkEqual("DELETE")){
-            parseDelete();
+            return parseDelete();
         }
         else if(checkEqual("UPDATE")){
-            parseUpdate();
+            return parseUpdate();
         } else {
             throw new RuntimeException("Syntax error.");
         }
-        return null;
     }
 
     /**
@@ -117,6 +111,7 @@ public class Parser
     /**
      * 解析where子句, 暂时不实现join多表查询, 还有select子查询
      * 每一个条件式, = 表达式由3个字符串组成, LIKE表达式由3或4个字符串组成, IS表达式由3到4个字符串组成, Between表达式由5个字符串组成, In表达式由不限量个字符串组成
+     * 进入此方法时, currentToken是where的下一个
      */
     public Expression parseWhere(){
         Expression expression = parseAnd();
@@ -283,30 +278,63 @@ public class Parser
 
     /**
      * delete from persons where name = 'peter';
-     * demo 只搞主键的查找
      */
-    public void parseDelete(){
+    public Prepared parseDelete(){
         if(! checkNext("FROM")){
-            return;
+            try{
+                throw new SQLException("Synxax error, 'delete' must follow a 'from'.");
+            }catch (SQLException e ){ e.printStackTrace(); }
+            return null;
         }
+        Delete delete = new Delete(connection);
         String tableName = next();
         Table table = schema.getTableOrView(tableName);
+        TableFilter tableFilter = new TableFilter(connection, table, tableName, null);
+        delete.setFrom(tableFilter);
         if(! checkNext("WHERE")){
-            return;
+            return delete;
         }
-        String columnName = next();
-        String symbol = next();
 
-        Value value = parseValue(next());
-        table.delete(value, columnName);
+        Expression where = parseWhere();
+        delete.setWhere(where);
+        return delete;
     }
 
     /**
      * Update table set name = 'peter' where id = '1';
      */
-    public void parseUpdate(){
-
+    public Prepared parseUpdate(){
+        Update update = new Update(connection);
+        String tableName = next();
+        Table table = schema.getTableOrView(tableName);
+        TableFilter tableFilter = new TableFilter(connection, table, tableName, null);
+        update.setFrom(tableFilter);
+        if(! checkNext("SET")){
+            try{
+                throw new SQLException("Synxax error, 'SET' must exist.");
+            }catch (SQLException e ){ e.printStackTrace(); }
+            return null;
+        }
+        HashMap<Column, Value> set = new HashMap<>();
+        next();
+        while(!checkEqual("WHERE") && !checkEqual(";")){
+            Column column = table.getColumn(currentToken);
+            if(! checkNext("=")){
+                try{
+                    throw new SQLException("Synxax error, '=' must exist in SET.");
+                }catch (SQLException e ){ e.printStackTrace(); }
+            }
+            Value value = parseValue(next());
+            set.put(column, value);
+            next(); //移动到, 或者where上
+        }
+        update.setSet(set);
+        if(checkEqual("WHERE")){
+            update.setWhere(parseWhere());
+        }
+        return update;
     }
+
 
     /**
      * 1.不处理if not exist
