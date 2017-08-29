@@ -14,13 +14,17 @@ public class ConditionLike extends Condition{
     private Expression column; // 当前条件式的左边columnName
 
     private Expression pattern;
-
+    String rightStr;
 
 
     public ConditionLike(Expression column, Expression pattern, boolean Not){
         this.column = column;
         this.Not = Not;
         this.pattern = pattern;
+        Value right = pattern.getValue(null);
+        rightStr = right.toString();
+        rightStr = rightStr.replaceAll("_", ".");
+        rightStr = rightStr.replaceAll("%", ".*");
     }
 
     public String getColumnName() {
@@ -35,15 +39,16 @@ public class ConditionLike extends Condition{
     //todo 非ValueString 类型应当无法使用like语句, 此时未做类型校验
     @Override
     public Value getValue(SQLConnection connection) {
-        Value right = pattern.getValue(connection);
+        //Value right = pattern.getValue(connection);
         Value left = column.getValue(connection);
-        String rightStr = right.toString();
+        //String rightStr = right.toString();
         String leftStr = left.toString();
-        rightStr = rightStr.replaceAll("_", ".");
-        rightStr = rightStr.replaceAll("%", ".*");
+       // rightStr = rightStr.replaceAll("_", ".");
+       // rightStr = rightStr.replaceAll("%", ".*");
         Pattern pattern = Pattern.compile(rightStr);
         Matcher matcher = pattern.matcher(leftStr);
-        if( (!Not && matcher.find() ) || (Not && ! matcher.find()) ){
+        boolean bool = matcher.find();
+        if( (!Not && bool ) || (Not && ! bool) ){
             return ValueBoolean.get(true);
         }
 
