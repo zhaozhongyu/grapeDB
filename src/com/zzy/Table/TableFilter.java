@@ -116,9 +116,10 @@ public class TableFilter implements ColumnResolver
     public String getTableAlias() {
         return this.alias;
     }
-
-
+    
     public Table getTable() {
         return table;
     }
+    
+    public Row getCurrentRow() { return currentRow; }
 }
