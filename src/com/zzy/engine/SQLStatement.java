@@ -5,7 +5,7 @@ import com.zzy.parser.Prepared;
 
 import java.sql.*;
 
-import static com.zzy.engine.SQLDriver.schema;
+import static com.zzy.engine.SQLConnection.schema;
 
 /**
  *
