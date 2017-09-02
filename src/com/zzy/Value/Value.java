@@ -7,7 +7,7 @@ public abstract class Value implements Comparable
     public static final int BOOLEAN = 1;
     public static final int BYTE = 2;
     public static final int INT = 3;
-    public static final int FLOAT = 4;
+    public static final int Double = 4;
     public static final int BYTES = 5;
     public static final int STRING = 6;
     public static final int BLOB = 7;
