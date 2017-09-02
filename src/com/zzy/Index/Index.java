@@ -114,4 +114,10 @@ public class Index
         return this.indexTree;
     }
 
+    
+    public void setIndexTree(TreeGen tree) {this.indexTree = tree;}
+
+    public boolean getDefault() { return this.column.isPrimaryKey();}
+
+    public int getType() {return this.column.getType().ordinal();}
 }
