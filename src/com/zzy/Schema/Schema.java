@@ -1,7 +1,7 @@
 package com.zzy.Schema;
 
 import com.zzy.Table.Table;
-
+import java.util.Collection;
 import java.util.HashMap;
 
 public class Schema
@@ -42,5 +42,7 @@ public class Schema
     public String getName(){
         return name;
     }
+    
+    public Collection<Table> getTables() { return this.tablesAndViews.values(); }
 
 }
