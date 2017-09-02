@@ -565,4 +565,8 @@ public class TreeGen {
             }
         }
     }
+    
+    public void set_rootNode(INode node){
+        this._rootNode = node;
+    }
 }
