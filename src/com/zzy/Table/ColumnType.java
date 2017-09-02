@@ -3,6 +3,7 @@ package com.zzy.Table;
 public enum ColumnType {
 
 
-    INT, CHAR, VARCHAR, DATE, TIME, BOOLEAN
+    NULL,BOOLEAN, BYTE, INT, FLOAT, BYTES, VARCHAR, BLOB,ARRAY,DATE, TIME; //VARCHAR 相当于String
+
 
 }
