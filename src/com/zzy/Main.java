@@ -65,3 +65,7 @@ public class Main {
 
     }
 }
+
+/*    public void set_rootNode(INode node){
+        this._rootNode = node;
+    }*/
