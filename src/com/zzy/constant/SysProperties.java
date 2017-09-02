@@ -6,4 +6,9 @@ package com.zzy.constant;
  */
 public class SysProperties
 {
+    public static String dirname = "zzy";
+
+    public static String filename = "zzydb.master";
+
+    public static double version = 1.0;
 }
