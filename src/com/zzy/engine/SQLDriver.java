@@ -11,13 +11,11 @@ public class SQLDriver implements Driver
 {
     static final String URL_PREFIX = "jdbc:zzydb";
     static SQLDriver driver;
-    static Schema schema; //本来应该是启动服务器的时候创建schema实例, 现在demo版本, 就放到Driver里面创建好了
 
     static {
         try{
             driver = new SQLDriver();
             java.sql.DriverManager.registerDriver(driver);
-            schema = new Schema(false, "data");
         }catch(Throwable e){
             e.printStackTrace();
         }
