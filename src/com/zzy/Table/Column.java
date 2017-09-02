@@ -1,9 +1,11 @@
 package com.zzy.Table;
 
+import static com.zzy.Table.ColumnType.*;
+
 public class Column {
     private String name;    //名字
     private ColumnType type; //标识类型
-    private int length; //对于varchar等类型, 标识最大长度, 对于int等基础类型, 不生效
+    private int length = 0; //对于varchar等类型, 标识最大长度, 对于int等基础类型, 不生效
     private boolean isNullable = true; //是否可空, 默认为true
 
 
@@ -27,6 +29,17 @@ public class Column {
         this.name = name;
         this.type = type;
         this.length = length;
+        this.isNullable = isNullable;
+        this.isUnique = isUnique;
+    }
+
+    //此构造方法用于从磁盘文件中读取新建使用
+    public Column(String name, int type, int length, boolean primaryKey, boolean isUnique, boolean isNullable){
+        ColumnType columnType = ColumnType.values()[type];
+        this.name = name;
+        this.type = columnType;
+        this.length = length;
+        this.primaryKey = primaryKey;
         this.isNullable = isNullable;
         this.isUnique = isUnique;
     }
