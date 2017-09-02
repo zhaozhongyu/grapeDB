@@ -244,9 +244,6 @@ public class storeImpl implements Store {
         if(value instanceof ValueDouble){
             return 8;
         }
-        if(value instanceof ValueTime){
-            return 8;
-        }
         return 0;
     };
 
