@@ -7,6 +7,7 @@ import com.zzy.Value.Value;
 import com.zzy.Value.ValueInt;
 import com.zzy.engine.SQLConnection;
 
+import java.util.Collection;
 import java.util.HashMap;
 
 public class Table
@@ -48,7 +49,7 @@ public class Table
     }
 
     /**
-     * 未指定主键时, 则寻找一个唯一列作为主键使用, 倘若找不到唯一列, 则生成一个自增Column作为隐藏主键
+     * 未指定主键时, 则寻找一个唯一列作为主键使用, 倘若找不到唯一列, 则生成一个自增Column作为隐藏主键(未测试过)
      * @param name
      * @param schema
      * @param columns
@@ -80,6 +81,7 @@ public class Table
             new Table(name, schema, columns, autoColumn);*/
            throw new RuntimeException("Table must have unique column.");
         }
+        schema.addTable(this);
     }
 
     /**
@@ -250,4 +252,15 @@ public class Table
     public Schema getSchema() {
         return schema;
     }
+
+    public void setDefaultIndex(Index index){
+        this.defaultIndex = index;
+        addIndex(index);
+    }
+
+    public void addIndex(Index index){
+        this.indexMap.put(index.getColumnName(), index);
+    }
+
+    public Collection<Index> getIndexs(){return this.indexMap.values();}
 }
