@@ -1,5 +1,9 @@
 package com.zzy.engine;
 
+import com.zzy.Schema.Schema;
+import com.zzy.Storage.Store;
+import com.zzy.Storage.storeImpl;
+
 import java.sql.*;
 import java.util.Map;
 import java.util.Properties;
@@ -7,11 +11,14 @@ import java.util.concurrent.Executor;
 
 
 public class SQLConnection implements Connection{
+    static Schema schema; //本来应该是启动服务器的时候创建schema实例
+    static Store store;
     SQLStatement statement ;
     PreparedStatement preparedStatement;
 
     public SQLConnection(){
-
+        store = new storeImpl();
+        schema = ((storeImpl)store).schema;
     }
 
     @Override
@@ -59,6 +66,7 @@ public class SQLConnection implements Connection{
     @Override
     public void close() throws SQLException {
         statement.close();
+        store.close();
     }
 
     @Override
